@@ -27,7 +27,7 @@ function parseQueryString(qs, sep, eq) {
 }
 
 // This block of code sets up the database connection and the tables in the database.
-const sequelize = new Sequelize({ ...process.env, dialect: 'postgres', logging: false });
+const sequelize = new Sequelize(`postgres://${process.env.db_username}:${process.env.db_password}@localhost:5432/${process.env.database}`);
 sequelize.authenticate().then(() => console.log('Connection successfully established to the database!'), err => console.error('We failed to establish a connection to the database, here\'s why: ', err));
 class Logs extends Sequelize.Model { };
 class Errors extends Sequelize.Model { };
