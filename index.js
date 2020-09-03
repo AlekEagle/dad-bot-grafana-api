@@ -38,21 +38,21 @@ Logs.init({
 }, {
     sequelize
 });
-Logs.sync({force: true}).then(() => console.log('Table Logs synced successfully!'), err => console.error('Failed to sync Logs table to the database, here\'s why: ', err));
+Logs.sync().then(() => console.log('Table Logs synced successfully!'), err => console.error('Failed to sync Logs table to the database, here\'s why: ', err));
 Errors.init({
     id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
     data: Sequelize.DataTypes.STRING(10485760)
 }, {
     sequelize
 });
-Errors.sync({force: true}).then(() => console.log('Table Errors synced successfully!'), err => console.error('Failed to sync Errors table to the database, here\'s why: ', err));
+Errors.sync().then(() => console.log('Table Errors synced successfully!'), err => console.error('Failed to sync Errors table to the database, here\'s why: ', err));
 Clusters.init({
     id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
     data: Sequelize.DataTypes.JSON
 }, {
     sequelize
 });
-Clusters.sync({force: true}).then(() => console.log('Table Clusters synced successfully!'), err => console.error('Failed to sync GuildCount table to the database, here\'s why: ', err));
+Clusters.sync().then(() => console.log('Table Clusters synced successfully!'), err => console.error('Failed to sync GuildCount table to the database, here\'s why: ', err));
 
 // This is where we handle WebSocket connections
 server.on('upgrade', (req, socket, head) => {
