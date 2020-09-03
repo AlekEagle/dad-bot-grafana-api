@@ -10,11 +10,11 @@ const url = require('url');
 const { escape, unescape } = require('querystring');
 const { cpuUsage } = require('process');
 const wss = new WebSocket.Server({ clientTracking: false, noServer: true });
-const port = process.argv[2] || 3000,
+const port = process.argv[2] || 8080,
     ip = process.argv[3] || '0.0.0.0';
 const clusters = new Map();
 app.use(require('express').json());
-let clusterDP = {};
+let clusterDP = {guildCount: [], cpuUsage: [], memUsage: [], ping: []};
 
 // This function parses the query string
 function parseQueryString(qs, sep, eq) {
@@ -27,56 +27,32 @@ function parseQueryString(qs, sep, eq) {
 }
 
 // This block of code sets up the database connection and the tables in the database.
-const sequelize = new Sequelize({ ...process.env, dialect: 'postgres', logging: false });
+const sequelize = new Sequelize({ username: process.env.dbusername, password: process.env.dbpassword, database: process.env.dbdatabase, host: process.env.dbhost, port: process.env.dbport, dialect: 'postgres', logging: false });
 sequelize.authenticate().then(() => console.log('Connection successfully established to the database!'), err => console.error('We failed to establish a connection to the database, here\'s why: ', err));
 class Logs extends Sequelize.Model { };
 class Errors extends Sequelize.Model { };
-class GuildCount extends Sequelize.Model { };
-class Ping extends Sequelize.Model { };
-class CPUUsage extends Sequelize.Model { };
-class MemUsage extends Sequelize.Model { };
+class Clusters extends Sequelize.Model { };
 Logs.init({
     id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
     data: Sequelize.DataTypes.STRING(10485760)
 }, {
     sequelize
 });
-Logs.sync().then(() => console.log('Table Logs synced successfully!'), err => console.error('Failed to sync Logs table to the database, here\'s why: ', err));
+Logs.sync({force: true}).then(() => console.log('Table Logs synced successfully!'), err => console.error('Failed to sync Logs table to the database, here\'s why: ', err));
 Errors.init({
     id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
     data: Sequelize.DataTypes.STRING(10485760)
 }, {
     sequelize
 });
-Errors.sync().then(() => console.log('Table Errors synced successfully!'), err => console.error('Failed to sync Errors table to the database, here\'s why: ', err));
-GuildCount.init({
+Errors.sync({force: true}).then(() => console.log('Table Errors synced successfully!'), err => console.error('Failed to sync Errors table to the database, here\'s why: ', err));
+Clusters.init({
     id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
-    data: Sequelize.DataTypes.INTEGER
+    data: Sequelize.DataTypes.JSON
 }, {
     sequelize
 });
-GuildCount.sync().then(() => console.log('Table GuildCount synced successfully!'), err => console.error('Failed to sync GuildCount table to the database, here\'s why: ', err));
-Ping.init({
-    id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
-    data: Sequelize.DataTypes.INTEGER
-}, {
-    sequelize
-});
-Ping.sync().then(() => console.log('Table Ping synced successfully!'), err => console.error('Failed to sync Ping table to the database, here\'s why: ', err));
-CPUUsage.init({
-    id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
-    data: Sequelize.DataTypes.INTEGER
-}, {
-    sequelize
-});
-CPUUsage.sync().then(() => console.log('Table CPUUsage synced successfully!'), err => console.error('Failed to sync CPUUsage table to the database, here\'s why: ', err));
-MemUsage.init({
-    id: {type: Sequelize.DataTypes.DATE, primaryKey: true},
-    data: Sequelize.DataTypes.INTEGER
-}, {
-    sequelize
-});
-MemUsage.sync().then(() => console.log('Table MemUsage synced successfully!'), err => console.error('Failed to sync MemUsage table to the database, here\'s why: ', err));
+Clusters.sync({force: true}).then(() => console.log('Table Clusters synced successfully!'), err => console.error('Failed to sync GuildCount table to the database, here\'s why: ', err));
 
 // This is where we handle WebSocket connections
 server.on('upgrade', (req, socket, head) => {
@@ -196,23 +172,18 @@ wss.on('connection', ws => {
                     ws.close(4004), "Invalid Payload";
                     return;
                 }
-                clusterDP[ws.ID] = json.d;
+                clusterDP.guildCount[ws.ID] = json.d.guildCount;
+                clusterDP.memUsage[ws.ID] = json.d.memUsage;
+                clusterDP.cpuUsage[ws.ID] = json.d.cpuUsage;
+                clusterDP.ping[ws.ID] = json.d.ping;
                 ws.send(JSON.stringify({op: 4, d: false}));
-                if (Object.keys(clusterDP).length === ws.clusterCount) {
-                    let final = Object.values(clusterDP).reduce((a, b) => {
-                        return {guildCount: a.guildCount + b.guildCount, ping: Math.round((a.ping + b.ping) / 2), cpuUsage: a.cpuUsage + b.cpuUsage, memUsage: a.memUsage + b.memUsage}
-                    });
-                    clusterDP = {};
-                    GuildCount.create({id: new Date().toISOString(), data: final.guildCount}).then(() => {
-                        Ping.create({id: new Date().toISOString(), data: final.ping}).then(() => {
-                            CPUUsage.create({id: new Date().toISOString(), data: final.cpuUsage}).then(() => {
-                                MemUsage.create({id: new Date().toISOString(), data: final.memUsage}).then(() => {
-                                    clusters.forEach(wwss => {
-                                        wwss.send(JSON.stringify({op: 7, d: final}));
-                                    });
-                                });
-                            });
+                if (clusterDP.guildCount.filter(e => e !== undefined).length === ws.clusterCount) {
+                    
+                    Clusters.create({id: new Date().toISOString(), data: clusterDP}).then(() => {
+                        clusters.forEach(wwss => {
+                            wwss.send(JSON.stringify({op: 7, d: clusterDP}));
                         });
+                        clusterDP = {guildCount: [], cpuUsage: [], memUsage: [], ping: []};
                     });
                 }
             break;
