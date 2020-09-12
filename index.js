@@ -8,7 +8,6 @@ const Map = require('collections/map');
 const WebSocket = require('ws');
 const url = require('url');
 const { escape, unescape } = require('querystring');
-const { cpuUsage } = require('process');
 const wss = new WebSocket.Server({ clientTracking: false, noServer: true });
 const port = process.argv[2] || 8080,
     ip = process.argv[3] || '0.0.0.0';
