@@ -107,7 +107,7 @@ wss.on('connection', ws => {
     });
     let identifyTimeout = setTimeout(() => {
         console.info("The connection didn't identify in time, disconnecting!");
-        ws.close(4002);
+        ws.close(4002, "Didn't Identify in Time");
     }, 10000);
     ws.send(JSON.stringify({ op: 0, d: { heartbeatInterval: 10000 } }));
     ws.on('message', d => {
@@ -214,7 +214,7 @@ wss.on('connection', ws => {
                 break;
             case 3:
                 // Update all
-                if (json.d.guildCount !== undefined || json.d.ping !== undefined || json.d.cpuUsage !== undefined || json.d.memUsage !== undefined) {
+                if (json.d.guildCount === undefined || json.d.ping === undefined || json.d.cpuUsage === undefined || json.d.memUsage === undefined) {
                     console.info("The connection sent an invalid payload, disconnecting!");
                     if (ws.ID !== undefined) {
                         clusters.delete(ws.ID);
@@ -225,7 +225,7 @@ wss.on('connection', ws => {
                             });
                         }
                     }
-                    ws.close(4004), "Invalid Payload";
+                    ws.close(4004, "Invalid Payload");
                     return;
                 }
                 clusterDP.guildCount[ws.ID] = json.d.guildCount;
