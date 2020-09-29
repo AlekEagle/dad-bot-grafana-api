@@ -155,7 +155,8 @@ wss.on('connection', ws => {
         |      6 |        <- | Client sending an error to be stored.
         |      7 |        -> | Server notifying all clusters that stats data has been pushed to db, with a copy of latest push.
         |      8 |        -> | Server notifying clusters if all clusters are connected or if one dropped.
-        |      9 |       <-> | Cross-Cluster communication
+        |      9 |        <- | Cross-Cluster communication
+        |     10 |       <-> | Response to Cross-Cluster communication
         |
         */
         switch (json.op) {
@@ -248,27 +249,29 @@ wss.on('connection', ws => {
                     console.info("The connection sent an invalid payload, disconnecting!");
                     return;
                 }
-                if (clustersCom[json.d.id] === ws.ID) return;
+                if (clustersCom[ws.ID]) return;
                 let uid = Date.now();
-                clustersCom[ws.ID] = json.d.id;
+                clustersCom[ws.ID] = {request: {id: ws.ID, uid: json.d.uid}, response: {id: json.d.id, uid}};
                 clusters.get(json.d.id).send(JSON.stringify({ op: 9, d: { id: ws.ID, data: json.d.data, uid } }));
                 function getData(d2) {
+                    let json2;
                     try {
-                        JSON.parse(d2);
+                        json2 = JSON.parse(d2);
                     } catch (err) {
                         console.info("The connection did not send JSON data, disconnecting!");
                         clusters.get(json.d.id).close(1003);
                         return;
                     }
-                    let json2 = JSON.parse(d2);
-                    if (json2.op === 9 && json2.d.uid === uid && json2.d.id === ws.ID) {
-                        ws.send(JSON.stringify({ op: 9, d: { uid: json.d.uid, data: json2.d.data, id: json.d.id } }));
-                        delete clustersCom[ws.ID];
+                    if (json2.op === 10 && json2.d.uid === clustersCom[ws.ID].response.uid && json2.d.id === clustersCom[ws.ID].request.id) {
+                        ws.send(JSON.stringify({ op: 10, d: { uid: clustersCom[ws.ID].request.id, data: json2.d.data, id: clustersCom[ws.ID].response.id } }));
+                        clustersCom[ws.ID] = null;
                         clusters.get(json.d.id).off('message', getData);
                     } else return;
                 }
                 clusters.get(json.d.id).on('message', getData);
                 break;
+            case 10:
+            break;
             default:
                 ws.close(4001, "Invalid opcode");
         }
