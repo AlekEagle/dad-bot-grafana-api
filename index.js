@@ -159,6 +159,7 @@ wss.on('connection', ws => {
         |     10 |       <-> | Response to Cross-Cluster communication
         |
         */
+       console.debug(JSON.stringify(json));
         switch (json.op) {
             case 2:
                 // Identify payload
