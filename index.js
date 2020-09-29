@@ -165,12 +165,6 @@ wss.on('connection', ws => {
                     console.info("The connection sent an invalid payload, disconnecting!");
                     ws.close(4004, "Invalid Payload");
                     clearTimeout(identifyTimeout);
-                    if (clusters.size === ws.clusterCount) {
-                        console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                        clusters.forEach(wwss => {
-                            wwss.send(JSON.stringify({ op: 8, d: false }));
-                        });
-                    }
                     return;
                 }
                 if (json.d.clusterID >= json.d.clusterCount) {
@@ -198,7 +192,6 @@ wss.on('connection', ws => {
                         clusters.forEach(cluster => {
                             if (cluster.clusterCount === json.d.clusterCount) return;
                             cluster.close(4006, "New cluster count");
-                            clusters.delete(cluster.ID);
                         });
                     }
                     if (clusters.size === json.d.clusterCount) {
@@ -216,15 +209,6 @@ wss.on('connection', ws => {
                 // Update all
                 if (json.d.guildCount === undefined || json.d.ping === undefined || json.d.cpuUsage === undefined || json.d.memUsage === undefined) {
                     console.info("The connection sent an invalid payload, disconnecting!");
-                    if (ws.ID !== undefined) {
-                        clusters.delete(ws.ID);
-                        if (clusters.size === ws.clusterCount) {
-                            console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                            clusters.forEach(wwss => {
-                                wwss.send(JSON.stringify({ op: 8, d: false }));
-                            });
-                        }
-                    }
                     ws.close(4004, "Invalid Payload");
                     return;
                 }
@@ -246,15 +230,6 @@ wss.on('connection', ws => {
             case 5:
                 if (!json.d) {
                     console.info("The connection sent an invalid payload, disconnecting!");
-                    if (ws.ID !== undefined) {
-                        clusters.delete(ws.ID);
-                        if (clusters.size === ws.clusterCount) {
-                            console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                            clusters.forEach(wwss => {
-                                wwss.send(JSON.stringify({ op: 8, d: false }));
-                            });
-                        }
-                    }
                     ws.close(4004, "Invalid Payload");
                     return;
                 }
@@ -263,15 +238,6 @@ wss.on('connection', ws => {
             case 6:
                 if (!json.d) {
                     console.info("The connection sent an invalid payload, disconnecting!");
-                    if (ws.ID !== undefined) {
-                        clusters.delete(ws.ID);
-                        if (clusters.size === ws.clusterCount) {
-                            console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                            clusters.forEach(wwss => {
-                                wwss.send(JSON.stringify({ op: 8, d: false }));
-                            });
-                        }
-                    }
                     ws.close(4004, "Invalid Payload");
                     return;
                 }
@@ -280,16 +246,6 @@ wss.on('connection', ws => {
             case 9:
                 if (json.d.id === undefined || json.d.uid === undefined || json.d.id >= ws.clusterCount) {
                     console.info("The connection sent an invalid payload, disconnecting!");
-                    if (ws.ID !== undefined) {
-                        clusters.delete(ws.ID);
-                        if (clusters.size === ws.clusterCount) {
-                            console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                            clusters.forEach(wwss => {
-                                wwss.send(JSON.stringify({ op: 8, d: false }));
-                            });
-                        }
-                    }
-                    ws.close(4004, "Invalid Payload");
                     return;
                 }
                 if (clustersCom[json.d.id] === ws.ID) return;
@@ -302,13 +258,6 @@ wss.on('connection', ws => {
                     } catch (err) {
                         console.info("The connection did not send JSON data, disconnecting!");
                         clusters.get(json.d.id).close(1003);
-                        clusters.delete(json.d.id);
-                        if (clusters.size === ws.clusterCount) {
-                            console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                            clusters.forEach(wwss => {
-                                wwss.send(JSON.stringify({ op: 8, d: false }));
-                            });
-                        }
                         return;
                     }
                     let json2 = JSON.parse(d2);
@@ -322,25 +271,17 @@ wss.on('connection', ws => {
                 break;
             default:
                 ws.close(4001, "Invalid opcode");
-                if (ws.ID !== undefined) {
-                    clusters.delete(ws.ID);
-                    if (clusters.size === ws.clusterCount) {
-                        console.info("All clusters are no longer connected! Notifying all remaining clusters!");
-                        clusters.forEach(wwss => {
-                            wwss.send(JSON.stringify({ op: 8, d: false }));
-                        });
-                    }
-                }
         }
     });
     ws.on('close', (code, reason) => {
-        if (clusterDP[ws.ID]) delete clusterDP[ws.ID];
         if (code !== 1000) {
             console.warn(`A websocket closed with an error!`, code, reason);
         } else {
             console.info('Websocket closed cleanly!');
         }
         if (ws.ID !== undefined) {
+            if (clusterDP[ws.ID]) delete clusterDP[ws.ID];
+            if(clustersCom[ws.ID]) delete clustersCom[ws.ID];
             if (clusters.size === ws.clusterCount) {
                 console.info("All clusters are no longer connected! Notifying all remaining clusters!");
                 clusters.forEach(wwss => {
@@ -353,6 +294,8 @@ wss.on('connection', ws => {
     ws.on('error', err => {
         console.warn(`A websocket errored!`, err);
         if (ws.ID !== undefined) {
+            if (clusterDP[ws.ID]) delete clusterDP[ws.ID];
+            if(clustersCom[ws.ID]) delete clustersCom[ws.ID];
             clusters.delete(ws.ID);
             if (clusters.size === ws.clusterCount) {
                 console.info("All clusters are no longer connected! Notifying all remaining clusters!");
@@ -386,6 +329,8 @@ setInterval(() => {
             ws.terminate();
             console.info(`Cluster ${ws.ID} did not respond to a ping, disconnecting.`);
             if (ws.ID !== undefined) {
+                if (clusterDP[ws.ID]) delete clusterDP[ws.ID];
+                if(clustersCom[ws.ID]) delete clustersCom[ws.ID];
                 clusters.delete(ws.ID);
                 if (clusters.size === ws.clusterCount) {
                     console.info("All clusters are no longer connected! Notifying all remaining clusters!");
