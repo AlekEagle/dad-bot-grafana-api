@@ -264,7 +264,7 @@ wss.on('connection', ws => {
                         return;
                     }
                     if (json2.op === 10 && json2.d.uid === clustersCom[ws.ID].response.uid && json2.d.id === clustersCom[ws.ID].request.id) {
-                        ws.send(JSON.stringify({ op: 10, d: { uid: clustersCom[ws.ID].request.id, data: json2.d.data, id: clustersCom[ws.ID].response.id } }));
+                        clusters.get(clustersCom[ws.ID].request.id).send(JSON.stringify({ op: 10, d: { uid: clustersCom[ws.ID].request.uid, data: json2.d.data, id: clustersCom[ws.ID].response.id } }));
                         clustersCom[ws.ID] = null;
                         clusters.get(json.d.id).off('message', getData);
                     } else return;
